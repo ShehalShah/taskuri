@@ -10,6 +10,7 @@ import json
 import cv2
 from io import BytesIO
 from django.core.files.uploadedfile import InMemoryUploadedFile
+from sklearn.cluster import KMeans
 
 @api_view(['POST'])
 def upload_image(request):
@@ -94,8 +95,6 @@ def upload_image(request):
 #     return result
 
 
-import numpy as np
-from sklearn.cluster import KMeans
 
 def extract_colors(image):
     # Define the number of boxes you want to identify (in your case, 10)
@@ -113,23 +112,35 @@ def extract_colors(image):
     # Iterate through the image vertically to extract colors of each box
     for i in range(num_boxes):
         # Calculate the starting and ending rows for the current box
-        start_row = i * box_height
-        end_row = (i + 1) * box_height
+        start_row = int(i * box_height + 1/3*box_height)
+        end_row = int((i + 1) * box_height - 1/3*box_height)
 
         # Extract the region corresponding to the current box
-        box_region = image[start_row:end_row, :]
+        box_region = image[start_row:end_row, 24:48]
 
+        if(i==3):
+            cv2.imwrite('box_region.png',box_region)
+
+        box_region = cv2.cvtColor(box_region, cv2.COLOR_BGR2RGB)
+        
         # Reshape the box region into a 1D array of RGB values
         box_array = box_region.reshape(-1, 3)
 
         # Perform K-means clustering on the box region
-        kmeans = KMeans(n_clusters=1)  # Use 1 cluster to get the dominant color
-        kmeans.fit(box_array)
+        # kmeans = KMeans(n_clusters=1)  # Use 1 cluster to get the dominant color
+        # kmeans.fit(box_array)
 
-        # Get the color of the cluster center
-        box_color = kmeans.cluster_centers_[0].astype(int)
+        # # Get the color of the cluster center
+        # box_color = kmeans.cluster_centers_[0].astype(int)
 
         # Append the color to the list of box colors
+        #  Calculate the average color in the current box
+        box_color = np.mean(box_region, axis=(0, 1)).astype(int)
+        if(i==3):
+            print(box_color)
+
+            # Store the average color in the result dictionary
+        # result[color_names[i]] = average_color.tolist()
         box_colors.append(box_color.tolist())
 
     # Create a dictionary to associate box numbers with their colors
